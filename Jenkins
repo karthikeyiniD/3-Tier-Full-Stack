@@ -1,0 +1,67 @@
+pipeline {
+    agent any
+    tools{
+        nodejs 'nodejs'
+    }
+
+    stages {
+        stage('git checkout') {
+            steps {
+                git branch: 'main', credentialsId: 'gitcred', url: 'https://github.com/karthikeyiniD/3-Tier-Full-Stack.git'
+            }
+        }
+    
+    
+        stage('install package dependencies') {
+            steps {
+                sh "npm install"
+            }
+        }
+         stage('unit tests') {
+            steps {
+                sh "npm test"
+            }
+        }
+        stage('trivy scan') {
+            steps {
+                
+                sh "trivy fs --format table -o fs-report.html ."
+            }
+        }
+        stage('Docker build &tag') {
+            steps {
+                script{
+                    withDockerRegistry(credentialsId: 'DOCKER-cred') {
+                        sh "docker build -t karthikeyinid/3-tier:latest ."
+                    }
+                }
+                
+
+            }
+        }
+        
+        stage('Docker image push') {
+            steps {
+                script{
+                    withDockerRegistry(credentialsId: 'DOCKER-cred') {
+                        sh "docker push karthikeyinid/3-tier:latest"
+                    }
+                }
+                
+
+            }
+        }
+        stage('Docker Deploy to Dev') {
+            steps {
+                script{
+                    withDockerRegistry(credentialsId: 'DOCKER-cred') {
+                        sh "docker run -d -p 3000:3000 karthikeyinid/3-tier:latest"
+                    }
+                }
+                
+
+            }
+        }
+    }
+    
+}
